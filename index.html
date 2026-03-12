@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>JEE Advanced | Physics Mock Challenge</title>
+    <style>
+        :root {
+            --neon-blue: #00d2ff;
+            --neon-purple: #9d50bb;
+            --dark-bg: #050505;
+            --correct: #00ff88;
+            --wrong: #ff4b2b;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: var(--dark-bg);
+            background-image: radial-gradient(circle at 50% 50%, #1a1a2e 0%, #050505 100%);
+            color: white;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .container { width: 100%; max-width: 800px; padding: 20px; }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 20px;
+            border: 1px solid rgba(0, 210, 255, 0.3);
+            box-shadow: 0 0 20px rgba(0, 210, 255, 0.1);
+        }
+
+        #timer { font-size: 2rem; color: #ffcc00; text-shadow: 0 0 10px #ffcc00; margin: 20px 0; }
+        
+        input[type="text"] {
+            width: 80%; padding: 15px; margin: 20px 0;
+            background: rgba(255,255,255,0.1); border: 1px solid var(--neon-blue);
+            color: white; border-radius: 10px; font-size: 1.1rem;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, var(--neon-blue), var(--neon-purple));
+            color: white; padding: 15px 40px; border: none; border-radius: 12px;
+            font-weight: bold; cursor: pointer; text-transform: uppercase; letter-spacing: 1px;
+        }
+
+        .q-card {
+            text-align: left; background: rgba(255,255,255,0.03);
+            padding: 20px; margin: 20px 0; border-radius: 12px; border-left: 4px solid var(--neon-blue);
+        }
+
+        .hidden { display: none; }
+        .score-num { font-size: 4rem; color: var(--neon-blue); font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="start-screen" class="card">
+        <h1 style="color: var(--neon-blue);">🚀 JEE PHYSICS CHALLENGE</h1>
+        <p>Class 11 | 20 Questions | 15 Minutes</p>
+        <input type="text" id="username" placeholder="Enter Your Full Name" required><br>
+        <button class="btn" onclick="startTest()">Start Mock Test</button>
+    </div>
+
+    <div id="quiz-ui" class="hidden">
+        <div class="card" style="position: sticky; top: 10px; z-index: 100; margin-bottom: 20px; padding: 10px;">
+            <div id="timer">15:00</div>
+        </div>
+        <div id="questions-list"></div>
+        <button class="btn" id="submit-btn" onclick="endTest()" style="width: 100%; margin-top: 20px;">Submit Test</button>
+    </div>
+
+    <div id="result-screen" class="card hidden">
+        <h2>Test Finished!</h2>
+        <div class="score-num" id="final-score">0</div>
+        <p>Total Marks: <span id="marks-display"></span> / 80</p>
+        <p id="saving-msg" style="color: #fbbf24;">Saving your score to Leaderboard...</p>
+        <div id="analysis" style="text-align: left; max-height: 300px; overflow-y: auto; margin: 20px 0;"></div>
+        <button class="btn" onclick="location.reload()">Take Retest</button>
+    </div>
+</div>
+
+<script>
+    // ********* CONFIGURATION *********
+    // GOOGLE APPS SCRIPT URL YAHAN PASTE KARO:
+    const scriptURL = 'https://script.google.com/macros/s/AKfycbw2mDfW0Gj1j7VkqQbjd5CbbXWb8DJ-ZXwawEWYuv2X7hCgWuFyiTCiLWOku2f6WM-z/execE'; 
+    // *********************************
+
+    let timer = 900;
+    let userName = "";
+    let timerInterval;
+
+    const questions = [
+        { q: "A ball is dropped from height H. Another thrown up from ground with u. They meet at H/2. Find u.", opts: ["sqrt(gH)", "sqrt(2gH)", "sqrt(gH/2)", "2*sqrt(gH)"], ans: 0 },
+        { q: "Disc of mass M, radius R rolls without slipping. Ratio of Rotational KE to Total KE is:", opts: ["1/2", "1/3", "2/3", "1/4"], ans: 1 },
+        { q: "Two vectors A and B are such that |A+B| = |A-B|. Angle between them is:", opts: ["0°", "45°", "90°", "180°"], ans: 2 },
+        { q: "Escape velocity on Earth is 11.2 km/s. On a planet with 2x mass and 2x radius, it is:", opts: ["11.2 km/s", "22.4 km/s", "5.6 km/s", "15.8 km/s"], ans: 0 },
+        { q: "Equation of SHM is x = 5 sin(20t). Maximum velocity is:", opts: ["5", "20", "100", "4"], ans: 2 },
+        { q: "If error in radius is 2%, error in volume of sphere is:", opts: ["2%", "4%", "6%", "8%"], ans: 2 },
+        { q: "Time period of simple pendulum in lift moving up with acceleration g/2 is:", opts: ["T*sqrt(2/3)", "T*sqrt(3/2)", "T/2", "T*sqrt(2)"], ans: 0 },
+        { q: "Dimension of Coefficient of Viscosity is:", opts: ["ML⁻¹T⁻¹", "MLT⁻¹", "ML⁻²T⁻¹", "ML⁻¹T⁻²"], ans: 0 },
+        { q: "Water rises to height h in capillary. If radius is doubled, height becomes:", opts: ["2h", "h/2", "h/4", "4h"], ans: 1 },
+        { q: "Average KE of a gas molecule at temperature T is:", opts: ["1/2 kT", "3/2 kT", "kT", "2 kT"], ans: 1 },
+        { q: "Angle of contact for pure water and clean glass is:", opts: ["0°", "90°", "135°", "45°"], ans: 0 },
+        { q: "Slope of Adiabatic process on P-V curve is ___ times Isothermal slope:", opts: ["γ", "1/γ", "γ-1", "1"], ans: 0 },
+        { q: "Center of mass of a half-disc of radius R is at distance ___ from center:", opts: ["4R/3π", "2R/π", "3R/4π", "R/2"], ans: 0 },
+        { q: "A gas is compressed isothermally. Its modulus of elasticity is:", opts: ["Equal to Pressure", "Equal to Zero", "Infinity", "γ * Pressure"], ans: 0 },
+        { q: "Breaking stress of a wire depends on:", opts: ["Length", "Radius", "Material", "Shape"], ans: 2 },
+        { q: "Work done in blowing a soap bubble of radius R is W. For radius 2R, work is:", opts: ["2W", "4W", "8W", "W/2"], ans: 1 },
+        { q: "Acceleration of body sliding down a smooth plane inclined at θ:", opts: ["g cosθ", "g sinθ", "g tanθ", "g"], ans: 1 },
+        { q: "Power delivered P = t². Velocity at time t (mass m) is:", opts: ["sqrt(2t³/3m)", "sqrt(t³/m)", "t²/2m", "sqrt(t⁴/4m)"], ans: 0 },
+        { q: "Collision where KE is NOT conserved but momentum IS:", opts: ["Elastic", "Inelastic", "Perfectly Elastic", "None"], ans: 1 },
+        { q: "Velocity of efflux hole at depth h. If extra pressure P is applied on surface:", opts: ["sqrt(2gh + P/ρ)", "sqrt(2gh + 2P/ρ)", "sqrt(gh + P/ρ)", "sqrt(2P/ρ)"], ans: 1 }
+    ];
+
+    function startTest() {
+        userName = document.getElementById('username').value;
+        if(!userName) { alert("Bhai, naam toh dalo!"); return; }
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('quiz-ui').classList.remove('hidden');
+        
+        const box = document.getElementById('questions-list');
+        questions.forEach((item, i) => {
+            box.innerHTML += `
+                <div class="q-card">
+                    <p><strong>Q${i+1}:</strong> ${item.q}</p>
+                    ${item.opts.map((o, idx) => `
+                        <label style="display:block; margin:5px 0; cursor:pointer;">
+                            <input type="radio" name="q${i}" value="${idx}"> ${o}
+                        </label>
+                    `).join('')}
+                </div>
+            `;
+        });
+
+        timerInterval = setInterval(() => {
+            timer--;
+            let m = Math.floor(timer/60);
+            let s = timer%60;
+            document.getElementById('timer').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+            if(timer <= 0) endTest();
+        }, 1000);
+    }
+
+    function endTest() {
+        clearInterval(timerInterval);
+        let score = 0;
+        let analysisHTML = "<h3>Your Report:</h3>";
+
+        questions.forEach((item, i) => {
+            const sel = document.querySelector(`input[name="q${i}"]:checked`);
+            const val = sel ? parseInt(sel.value) : -1;
+            if(val === item.ans) {
+                score += 4;
+                analysisHTML += `<p>Q${i+1}: Correct ✅</p>`;
+            } else {
+                score -= (val === -1 ? 0 : 1);
+                analysisHTML += `<p>Q${i+1}: ${val === -1 ? 'Skipped' : 'Wrong ❌'} (Ans: ${item.opts[item.ans]})</p>`;
+            }
+        });
+
+        document.getElementById('quiz-ui').classList.add('hidden');
+        document.getElementById('result-screen').classList.remove('hidden');
+        document.getElementById('final-score').innerText = score;
+        document.getElementById('marks-display').innerText = score;
+        document.getElementById('analysis').innerHTML = analysisHTML;
+
+        // DATA SEND TO GOOGLE SHEETS
+               // Naya Updated Fetch Logic
+        fetch(scriptURL, {
+            method: 'POST',
+            mode: 'no-cors', // Ise rehne do agar Google link use kar rahe ho
+            body: JSON.stringify({ name: userName, score: score })
+        })
+        .then(() => {
+            document.getElementById('saving-msg').innerText = "Score Saved Successfully! ✅";
+            console.log("Data sent to Sheet");
+        })
+        .catch(err => {
+            document.getElementById('saving-msg').innerText = "Check Sheet for Score ⚠️";
+            console.error(err);
+        });
+
+        } else {
+            document.getElementById('saving-msg').innerText = "Leaderboard not linked (URL missing).";
+        }
+    }
+</script>
+</body>
+</html>
